@@ -1,0 +1,254 @@
+Para el Uso de Microservicios empleando Eureka, Zuur, Feign Servvices y config
+
+Para el Producto donde es que se hace el CRUD
+-----------PRODUCTO------------
+
+*Dependencias:
+	*JPA
+	*Spring Web
+	*Sping Dev Tools
+	*H2
+	*Spring Cloud
+	*Eureka Client
+	*MySqlDriver U Oracle:
+		<dependency>
+			<groupId>mysql</groupId>
+			<artifactId>mysql-connector-java</artifactId>
+			<version>5.1.49</version>
+			</dependency>
+`
+*SpringBoot Application debe de llevar las anotations
+	@EnableEurekaClient
+	@SpringBootApplication
+
+*En el Controller del Producto agregar caracteristica del puerto, incluir en la entidad
+	import org.springframework.core.env.Environment;
+	@Autowired
+	private Environment env;   // Hace referencia al Bean que guarda el Environment
+	producto.setPort(Integer.parseInt(env.getProperty("local.server.port")));
+
+
+*Agregar en el ApplicationProperties
+	spring.application.name=servicio-productos
+	server.port=${PORT:0}
+
+	eureka.instance.instance-id=${spring.application.name}:${spring.application.instance_id:${random.value}}
+
+	eureka.client.service-url.defaultZone= http://localhost:8761/eureka
+
+
+
+------------------------------Item----------- ---------
+Recibe el objeto ya filtrado y con parte de la lógica de negocios 
+
+*Dependencias:
+	*JPA
+	*Spring Web
+	*Sping Dev Tools
+	*Eureka Client
+	*OpenFeign
+	*Hystrix
+
+Para que el cliente funcione con servicios tipo Feign  se emplea:
+	
+*SPRINGBOOT APPLICATION
+	@EnableCircuitBreaker
+	@EnableEurekaClient
+	//@RibbonClient(name = "servicio-rpoductos") //habiitamos el Ribbon con el nombre del servicio que se va a consumir 
+	@EnableFeignClients
+	@SpringBootApplication
+
+*Crear un Paquete de Modelos donde se tiene el objeto Item y el objeto Producto
+
+*Crear un Paquete de Cliente y en la interfaz ClienteProductoRest:
+
+	@FeignClient (name = "servicio-productos")//Referenciar que es un cliente Feign no se especifica el puerto porque Eureka ayudara a vincularlos y hara el balanceo
+	public interface ClienteProductoRest {
+	
+		@GetMapping("/listar")
+		public List<Producto> listar();
+	
+	
+		@GetMapping("/getDetalle/{id}")
+		public Producto detalle(@PathVariable (name = "id") Long id);
+	
+	}
+
+*Crear un paquete Service 
+	--*Crear Primero una Interfaz Item Service donde se colocaran los metodos a emplear:
+		public interface ItemService {
+			public List <Item> findAll();
+			public Item findById(Long id, Integer cantidad);
+
+		}
+
+	--*Crear Servicio Feign donde se implementara la interfaz por ejemplo:
+		@Service("ServiceFeign")//Establece que el nombre del servicio sera ServiceFeign
+		@Primary//Si se tienen dos servicios con este se establece que es el servicio primario
+		public class ItemServiceFeign implements ItemService {
+	
+			@Autowired //Referencia al Bean que es cliente Feign, levanta todos los serivcios de producto ya que ahi se encuentra las URL
+			private ClienteProductoRest clienteFeign;
+
+			@Override
+			public List<Item> findAll() {
+			return clienteFeign.listar().stream().map(producto ->new Item(producto,1)).collect(Collectors.toList());
+			}
+
+			@Override
+			public Item findById(Long id, Integer cantidad) {
+			return new Item (clienteFeign.detalle(id),cantidad);
+			}
+
+
+		}
+
+	--*Crear Paquete Controller en el cual:
+	package com.deloitte.academia.app.items.controllers;
+
+
+		@RefreshScope//Refrescara o actualizara los valores del cproperties usando el Config Server
+		@RestController
+		public class ItemController {
+	
+			@Autowired //Environment para puerto e info
+			private Environment env;
+	
+	
+			@Autowired
+			@Qualifier("ServiceFeign") //Servicio a usar cuando se tienen dos que implementan la misma interfaz
+			private ItemService itemService;
+	
+			@Value("${configuration.texto}")
+			private String texto;
+	
+	
+			@GetMapping("/listar")
+			public List<Item>listar(){
+				return itemService.findAll();
+		
+			}
+	
+	
+	
+			@HystrixCommand(fallbackMethod = "metodoAlternativo") //Instruccion que dara un metodo a ejecutar en dado caso que se encuentre algun error como 400, 404 , 500 u otro
+			@GetMapping("/getDetalle/{id}/cantidad/{cantidad}")
+			public Item detalle(@PathVariable ( name= "id") Long id, @PathVariable ( name= "cantidad") Integer cantidad  ) {
+				return itemService.findById(id, cantidad);
+			}
+	
+	
+	
+			public Item metodoAlternativo(Long id, Integer cantidad) {
+				Item alternateItem = new Item();
+				Producto alternateProduct = new Producto();
+		
+				alternateProduct.setId(id);
+				alternateProduct.setNombre("Producto Alternativo");
+				alternateProduct.setPrecio(49.99);
+		
+				alternateItem.setProducto(alternateProduct);
+				alternateItem.setCantidad(cantidad);
+				return alternateItem;
+			}
+	
+	
+			@GetMapping("/obtener-config")
+			public ResponseEntity<?> obtenerConfig(@Value("${server.port}") String puerto){
+				Map<String,String> json = new HashMap<String,String>();
+				json.put("texto", texto);
+				json.put("puerto", puerto);
+		
+				if(env.getActiveProfiles().length>0 && env.getActiveProfiles()[0].equals("dev")) {
+					json.put("autor.nombre", env.getProperty("configuration.autor.name"));
+					json.put("autor.email", env.getProperty("configuration.autor.email"));
+					}
+				return new ResponseEntity< Map <String, String> >(json, HttpStatus.OK);
+				}
+
+			}
+	
+	*En el Application Properties se agregan las siguientes lineas
+		spring.application.name=servicio-PlanetaItems
+		server.port=8082
+
+		eureka.cient.service-url.defaultZone= http://localhost:8761/eureka
+
+		#Se emplean estas instrucciones para identificar errores por time Out
+		hystrix.command.default.excecution.isolation.thread.timeoutInMiliseconds = 2000
+		ribbon.ConnectTimeout=3000
+		ribbon.ReadTimeout=1000
+
+
+
+
+
+--------------------------EUREKA SERVER---------------------
+Es el encargado del balanceo de cargas entre los diferentes microservicios implementados
+
+*Dependencias:
+	*EurekaServer
+	*Sping Dev Tools
+
+
+
+Para que el cliente funcione con servicios tipo Feign  se emplea:
+	
+*SPRINGBOOT APPLICATION
+	@EnableEurekaServer
+	@SpringBootApplication
+
+*Application Properties
+	spring.application.name=servicio-eureka-server
+	server.port=8761
+
+	eureka.client.register-with-eureka=false
+	eureka.client.fetch-registry=false
+
+
+
+
+--------------------------ZUUL SERVER---------------------
+
+*Dependencias:
+	*Eureka Client
+	*Sping Dev Tools
+	*Spring  Web
+	*Zuul
+
+
+
+Para que el cliente funcione con servicios tipo Feign  se emplea:
+	
+*SPRINGBOOT APPLICATION
+	@EnableEurekaClient
+	@EnableZuulProxy
+	@SpringBootApplication
+
+*Application Properties
+	spring.application.name=servicio-zuul-server
+	server.port=8090
+
+	eureka.client.service-url.defaultZone= http://localhost:8761/eureka
+
+
+	zuul.routes.productos.service-id=servicio-productos
+	zuul.routes.productos.path=/api/productos/**
+
+
+
+	zuul.routes.items.service-id=servicio-items
+	zuul.routes.items.path=/api/items/**
+
+
+
+	zuul.routes.usuarios.service-id=servicio-usuarios
+	zuul.routes.usuarios.path=/api/usuarios/**
+
+
+	zuul.routes.security.service-id=servicio-oauth
+	zuul.routes.security.path=/api/security/**
+	zuul.routes.security.sensitive-headers=Cookie,Set-Cookie
+		
+
+		

@@ -1,0 +1,606 @@
+-----------USER AUTHORIZATION---------
+
+Primero crear una clase usuario en conjunto con su libreria
+
+-------Usuario Commons----------
+
+*El POM solo debe de llevar lo siguiente:
+<dependencies>
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-data-jpa</artifactId>
+		</dependency>
+
+		<dependency>
+			<groupId>com.h2database</groupId>
+			<artifactId>h2</artifactId>
+			<scope>runtime</scope>
+		</dependency>
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-test</artifactId>
+			<scope>test</scope>
+			<exclusions>
+				<exclusion>
+					<groupId>org.junit.vintage</groupId>
+					<artifactId>junit-vintage-engine</artifactId>
+				</exclusion>
+			</exclusions>
+		</dependency>
+	</dependencies>
+
+ *Borrar el main del Application
+*Crear un paquete con las identidades para agregar los usuarios y los roles
+	-Para la clase roles
+		@Entity
+		@Table (name = "roles")
+		public class Rol implements Serializable {
+			
+			/**
+			 * 
+			 */
+			private static final long serialVersionUID = 2029916456710031685L;
+			
+			@Id
+			@GeneratedValue (strategy = GenerationType.IDENTITY)
+			private Long id;
+			
+			@Column(unique = true, length = 30)
+			private String nombre;
+			
+		//	@ManyToMany(fetch =  FetchType.LAZY, mappedBy = "roles")
+		//	private List<Usuario> usuarios;
+
+			public Long getId() {
+				return id;
+			}
+
+			public void setId(Long id) {
+				this.id = id;
+			}
+
+			public String getNombre() {
+				return nombre;
+			}
+
+			public void setNombre(String nombre) {
+				this.nombre = nombre;
+			}
+		//
+		//	public List<Usuario> getUsuarios() {
+		//		return usuarios;
+		//	}
+		//
+		//	public void setUsuarios(List<Usuario> usuarios) {
+		//		this.usuarios = usuarios;
+		//	}	
+		}
+	-Para Usuarios:
+		@Entity
+		@Table (name = "usuarios")
+		public class Usuario implements Serializable {
+			
+			/**
+			 * 
+			 */
+			private static final long serialVersionUID = 2029916456710031685L;
+			@Id
+			@GeneratedValue (strategy = GenerationType.IDENTITY)
+			private Long id;
+			
+			@Column(unique = true, length = 20)
+			private String username;
+			
+			@Column(unique = true, length = 60)
+			private String password;
+			
+			private Boolean enabled;
+			private String nombre;
+			private String apellido;
+			
+			//@Email
+			@Column(unique = true, length = 100)
+			public String email;
+			
+			@ManyToMany(fetch =  FetchType.LAZY)
+			@JoinTable(name = "usuarios_to_roles",
+			joinColumns = @JoinColumn(name="usuario_id"), 
+			inverseJoinColumns = @JoinColumn(name="role_id"), //Referenciabas  a una tabla externa como el FOREIGN KEY de MYSQL
+			uniqueConstraints = {@UniqueConstraint(columnNames = {"usuario_id", "role_id"})})
+			private List<Rol> roles;
+
+			public Long getId() {
+				return id;
+			}
+
+			public void setId(Long id) {
+				this.id = id;
+			}
+
+			public String getUsername() {
+				return username;
+			}
+
+			public void setUsername(String username) {
+				this.username = username;
+			}
+
+			public String getPassword() {
+				return password;
+			}
+
+			public void setPassword(String password) {
+				this.password = password;
+			}
+
+			public Boolean getEnabled() {
+				return enabled;
+			}
+
+			public void setEnabled(Boolean enabled) {
+				this.enabled = enabled;
+			}
+
+			public String getNombre() {
+				return nombre;
+			}
+
+			public void setNombre(String nombre) {
+				this.nombre = nombre;
+			}
+
+			public String getApellido() {
+				return apellido;
+			}
+
+			public void setApellido(String apellido) {
+				this.apellido = apellido;
+			}
+
+			public String getEmail() {
+				return email;
+			}
+
+			public void setEmail(String email) {
+				this.email = email;
+			}
+
+			public List<Rol> getRoles() {
+				return roles;
+			}
+
+			public void setRoles(List<Rol> roles) {
+				this.roles = roles;
+			}
+		}
+		
+		
+	**ABRIR CMD Y COLOCAR LOS SIGUIENTES COMANDOS:
+		cd ***al directyorio donde este el commons
+		mvnw install
+	**Verificar que se haya instalado la libreria en el users->m2->repository-> direccion del paquete
+ 
+ 
+ 
+ -------------SERVICIO USUARIO-----------------
+ 
+ Primero para el servicio de usuarios
+ Agregar  las siguiuentes dependecias:
+ *Dependencias:
+	*JPA
+	*Spring Web
+	*Sping Dev Tools
+	*H2
+	*Eureka Client
+	*MySqlDriver U Oracle:
+		<dependency>
+			<groupId>mysql</groupId>
+			<artifactId>mysql-connector-java</artifactId>
+			<version>5.1.49</version>
+			</dependency>
+	*Data Rest:
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-data-rest</artifactId>
+		</dependency>
+	*Dependencia de la libreria creada
+			<dependency>
+			<groupId>com.deloitte.academia.app.common</groupId>
+			<artifactId>SpringBoot-servicio-commons-usuarios</artifactId>
+			<version>0.0.1-SNAPSHOT</version>
+		</dependency>
+		
+*En el Applicattion Properties 
+	spring.application.name=servicio-usuarios
+	server.port=${PORT:0}
+
+	eureka.instance.instance-id=${spring.application.name}:${spring.application.instance_id:${random.value}}
+
+	eureka.client.service-url.defaultZone= http://localhost:8761/eureka
+
+	logging.level.org.hibernate.SQL=debug
+
+
+
+*En el SpringBoot Application agregar l;as siguientes etiquetas
+@EnableEurekaClient
+@SpringBootApplication
+@EntityScan({"com.deloitte.academia.app.common.models.entity"})
+
+
+
+
+*En el mismo paquete crear un archivo llamado  "RepositoryConfig" y agregar: 
+Rsta clase esta encargada de configurar el Repository para cuando se implementen los metyodos CRUD
+
+@Configuration
+public class RepositoryConfig implements RepositoryRestConfigurer{
+
+	@Override
+	public void configureRepositoryRestConfiguration(RepositoryRestConfiguration config) {
+		config.exposeIdsFor(Usuario.class, Rol.class); 
+	}
+}
+
+
+	
+*Dentro de el servicio usuarios crear un paquete de Repository el cual al  extender una clase  contienen todos los metodos de las mismas
+y permite hacer Querrys
+
+			@RepositoryRestResource(path = "usuarios")
+			public interface UsuarioRepository extends PagingAndSortingRepository<Usuario, Long> {
+				
+				@RestResource(path = "buscar-username")
+				public Usuario findByUsername(@Param ("username") String username);
+				
+				@Query(" select u from Usuario u where u.username=?1")
+				public Usuario obtenerporNombredeUsuario(String username);
+				
+			}
+
+
+-----------------------SERVICIO OAUTH----------------------------
+sirve para generar todos los tokenbs y al informacion adicional que se consumira en un front
+
+Agregar  las siguiuentes dependecias:
+ *Dependencias:
+	*Spring Web
+	*Sping Dev Tools
+	*OpenFeign
+	*Cloud OAUTH2
+	*Eureka Client
+	*Dependencia de la libreria creada
+		<dependency>
+			<groupId>com.deloitte.academia.app.common</groupId>
+			<artifactId>SpringBoot-servicio-commons-usuarios</artifactId>
+			<version>0.0.1-SNAPSHOT</version>
+			<exclusions>
+				<exclusion>
+					<groupId>org.springframework.boot</groupId>
+					<artifactId>spring-boot-starter-data-jpa</artifactId>
+				</exclusion>
+			</exclusions>
+		</dependency>
+
+
+*En el Applicarion Properties 
+	spring.application.name=servicio-oauth
+	server.port=9100
+	eureka.client.service-url.defaultZone=http://localhost:8761/eureka
+
+
+*En el SpringBoot Application
+	
+	@EnableFeignClients
+	@EnableEurekaClient
+	@SpringBootApplication
+	public class SpringBootServicioOauthApplication  implements CommandLineRunner{
+		
+		@Autowired
+		private BCryptPasswordEncoder passwordEncoder;
+		
+		public static void main(String[] args) {
+			SpringApplication.run(SpringBootServicioOauthApplication.class, args);
+		}
+
+		@Override//Este metodo nos genera dos tokens validos para poder hacer la prueba los imprime en consola
+		public void run(String... args) throws Exception {
+			String password = "12345";
+			
+			for(int i=0; i<2; i++) {
+				String passwordBCrypted = passwordEncoder.encode(password);
+				System.out.println(passwordBCrypted);
+			}
+		}
+
+	}
+	
+**Se crea un paquete de Clientes en el cual se introducira una clase Usuario  FeignClient la cual consumira 
+los sertvicios del Usuario Servicio que creamois previamente:
+
+
+			@FeignClient( name = "servicio-usuarios")//Importante poner el nombre que se le asingno al servicio
+			public interface UsuarioFeignClient {
+				
+				@GetMapping( "/usuarios/search/buscar-username") // path Get para el metodo que  buscara el usuario por username ese lo definimos en el repositorio del servicio
+				public Usuario findByUsername ( @RequestParam String username);
+				
+				@PutMapping( "/usuarios/{id}")
+				public Usuario update ( @RequestBody Usuario usuario, @PathVariable Long id);
+			}
+
+
+
+*Crear un paquete de tipo Security en donde se agregaran las sieguientes clases:
+	*-AuthorizationServerConfig:
+		-Dicha clase esta encargada de crear todos los metodos de autorizacion para la seguridad del sistema
+		 En ella se crea el metodo empleado de TokenStore el cual emplea accessTokenConverter, la cual es encargada de\
+		 generar el Token por medio de una palabra secreta 
+		-El metodo public void configure(ClientDetailsServiceConfigurer clients) throws Exception
+		  se encarga de generar el Token, se establece el tiempo de vida del mismo, como la clave y que tipo de aplciacion 
+		  consumira el servicio
+		
+					 @Configuration
+					@EnableAuthorizationServer
+					public class AuthorizationServerConfig extends AuthorizationServerConfigurerAdapter{
+
+						@Autowired
+						private BCryptPasswordEncoder passwordEncoder; 
+						
+						@Autowired
+						private AuthenticationManager authenticationManager; 
+						
+						@Autowired
+						private InfoAdicionalToken infoAdicionalToken;
+						
+						@Override
+						public void configure(AuthorizationServerSecurityConfigurer security) throws Exception {
+
+							security.tokenKeyAccess("permitAll()")
+							.checkTokenAccess("isAuthenticated()") //permiso a los endpoint mientras hayan sido aunteticados
+							; 
+						}
+
+						//quienes tiene acceso a la configuracion
+						@Override
+						public void configure(ClientDetailsServiceConfigurer clients) throws Exception {
+							//para decir que otro tipo de applicacion sera
+							clients.inMemory().withClient("frontendApp")
+							.secret(passwordEncoder.encode("12345"))
+							.scopes("read", "write")
+							.authorizedGrantTypes("password", "refresh_token")
+							.accessTokenValiditySeconds(3600)
+							.refreshTokenValiditySeconds(3600);
+					//		.and()
+					//		.withClient("frontendApp")
+					//		.secret(passwordEncoder.encode("1234"))
+					//		.scopes("read", "write")
+					//		.authorizedGrantTypes("password", "refresh_token")
+					//		.accessTokenValiditySeconds(3600)
+					//		.refreshTokenValiditySeconds(3600);
+						}
+
+						//aqui los endpoint
+						@Override
+						public void configure(AuthorizationServerEndpointsConfigurer endpoints) throws Exception {
+
+							TokenEnhancerChain tokenEnhancerChain = new TokenEnhancerChain();
+							tokenEnhancerChain.setTokenEnhancers(Arrays.asList(infoAdicionalToken, accessTokenConverter()));
+							
+							endpoints.authenticationManager(authenticationManager)
+							.tokenStore(tokenStore())
+							.accessTokenConverter(accessTokenConverter())
+							.tokenEnhancer(tokenEnhancerChain);
+						}
+						
+						@Bean
+						public JwtTokenStore tokenStore() {
+							//Regresar un token
+							return new JwtTokenStore(accessTokenConverter());
+						}
+
+						@Bean
+						public JwtAccessTokenConverter accessTokenConverter() {
+							
+							JwtAccessTokenConverter tokenConverter = new JwtAccessTokenConverter();
+							//palabra secreta de JWT
+							tokenConverter.setSigningKey("algun_codigo_secreto_aeiou");
+							return tokenConverter;
+						}
+
+						
+						
+					}
+					
+					
+	*-InfoAdicionalToken: 
+			Es la clase encargade agregar informacion adicional a la proporcionada por el Token, ya que solo da el username y el role
+				@Configuration
+				public class InfoAdicionalToken implements TokenEnhancer {
+					
+					@Autowired
+					private IUsuarioService usuarioService;
+					@Override
+					public OAuth2AccessToken enhance(OAuth2AccessToken accessToken, OAuth2Authentication authentication) {
+						Map<String,Object>additionalInformation = new HashMap<String,Object>();
+						
+						Usuario usuario = usuarioService.findByUsername(authentication.getName());
+						additionalInformation.put("nombre", usuario.getNombre());
+						additionalInformation.put("apellido", usuario.getApellido());
+						additionalInformation.put("correo", usuario.getEmail());
+						((DefaultOAuth2AccessToken)accessToken).setAdditionalInformation(additionalInformation);
+						return accessToken;
+					}
+				}
+	*-SpringSecurityConfig: 
+			Es la clase encargada de establecer todos los metodos de seguridad necesartios por el OAUTH
+				@Configuration
+				public class SpringSecurityConfig extends WebSecurityConfigurerAdapter{
+					
+					@Autowired
+					private UserDetailsService usuarioService;
+					
+					@Bean
+					public BCryptPasswordEncoder passwordEncoder() {
+						return new BCryptPasswordEncoder();
+					}
+
+					@Override
+					protected void configure(AuthenticationManagerBuilder auth) throws Exception {
+						auth.userDetailsService(this.usuarioService).passwordEncoder(passwordEncoder());
+					}
+
+					@Override
+					@Bean
+					protected AuthenticationManager authenticationManager() throws Exception {
+						return super.authenticationManager();
+					} 
+				}
+
+
+*Crear un paquete de tipo Services en donde se agregaran las sieguientes clase e interfaz:
+	
+	*-Interfaz IUsuarioService: 
+		Utilizara los metodos creados dentro de el servicio de usuario 
+		
+			public interface IUsuarioService {
+				public Usuario findByUsername(String username);
+				public Usuario  update(Usuario usuario, Long id);
+
+			}
+	**- Clase UsuarioService:
+		Encargada de poder implementar todos los metodos de la interfaz mas los adicionales para la recepccion del Token
+			
+			@Service
+			public class UsuarioService implements IUsuarioService ,UserDetailsService {
+				
+				private Logger log = LoggerFactory.getLogger(Usuario.class);
+				
+				@Autowired
+				private UsuarioFeignClient client;
+				
+				
+				@Override //metodo de user detail service
+				public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
+					
+					Usuario usuario = client.findByUsername(username);
+					
+					if(usuario == null) {
+						log.error("Error en el login, no existe el usuario "+username+ " en el sistema");
+						throw new UsernameNotFoundException("Error en el login, no existe el usuario "+username+ " en el sistema");
+					}
+					
+					List<GrantedAuthority> authorities = usuario.getRoles().stream().map(rol -> new SimpleGrantedAuthority(rol.getNombre()))
+							.peek(authority -> log.info("Role: "+ authority.getAuthority()))
+							.collect(Collectors.toList());
+					
+					return new User(usuario.getUsername(),usuario.getPassword(),usuario.getEnabled(), true,true,true,authorities );
+				}
+
+
+				@Override
+				public Usuario findByUsername(String username) {
+					 return client.findByUsername(username);
+				}
+
+
+				@Override
+				public Usuario update(Usuario usuario, Long id) {
+					return client.update(usuario, id);
+				}
+
+			}
+
+------------------------------ZUUL SERVER----------------------------------------
+*Dependencias:
+	*Eureka Client
+	*Sping Dev Tools
+	*Spring  Web
+	*Zuul
+	*Cloud OAUTH2
+
+
+
+Para que el cliente funcione con servicios tipo Feign  se emplea:
+	
+*SPRINGBOOT APPLICATION
+	@EnableEurekaClient
+	@EnableZuulProxy
+	@SpringBootApplication
+
+*Application Properties
+	spring.application.name=servicio-zuul-server
+	server.port=8090
+
+	eureka.client.service-url.defaultZone= http://localhost:8761/eureka
+
+
+	zuul.routes.productos.service-id=servicio-productos
+	zuul.routes.productos.path=/api/productos/**
+
+
+
+	zuul.routes.items.service-id=servicio-items
+	zuul.routes.items.path=/api/items/**
+
+
+
+	zuul.routes.usuarios.service-id=servicio-usuarios
+	zuul.routes.usuarios.path=/api/usuarios/**
+
+
+	zuul.routes.security.service-id=servicio-oauth
+	zuul.routes.security.path=/api/security/**
+	zuul.routes.security.sensitive-headers=Cookie,Set-Cookie
+	
+
+
+*-En el SpringBootApplication Tener las siguientes etiquetas 
+	@EnableEurekaClient
+	@EnableZuulProxy
+	@SpringBootApplication
+
+
+*- Crear un paquete de oauth en el cual se crea la siguiente clase:
+		*-ResorucesServerConfig- encargada de delimitar el acceso a los metodos de todas las clases dentro del Zuul
+			@Configuration
+			@EnableResourceServer
+			public class ResourcesServerConfig extends ResourceServerConfigurerAdapter {
+
+				@Override
+				public void configure(ResourceServerSecurityConfigurer resources) throws Exception {
+
+					resources.tokenStore(tokenStore());
+				}
+
+				@Override
+				public void configure(HttpSecurity http) throws Exception {
+					http.authorizeRequests().antMatchers("/api/security/oauth/**").permitAll()
+					.antMatchers(HttpMethod.GET,"/api/productos/listar","/api/items/listar","/api/usuarios/usuarios").permitAll()
+					.antMatchers(HttpMethod.GET,"/api/productos/getDetalle/{id}",
+							"/api/items/getDetalle/{id}/cantidad/{cantidad}",
+							"/api/usuarios/usuarios/{id}").hasAnyRole("ADMIN","USER")
+			//		.antMatchers(HttpMethod.POST,"/api/productos/crear","/api/items/crear","/api/usuarios/usuarios").hasRole("ADMIN")
+			//		.antMatchers(HttpMethod.PUT,"/api/productos/editar/{id}","/api/items/editar/{id}","/api/usuarios/usuarios/{id}").hasRole("ADMIN")
+			//		.antMatchers(HttpMethod.DELETE,"/api/productos/eliminar/{id}","/api/items/eliminar/{id}","/api/usuarios/usuarios/{id}").hasRole("ADMIN")
+					.antMatchers("/api/productos/**","/api/items/**","/api/usuarios/**").hasRole("ADMIN")
+					.anyRequest().authenticated();
+					
+				}
+
+				@Bean
+				public JwtTokenStore tokenStore() {
+					
+					return new JwtTokenStore(accessTokenConverter());
+				}
+
+				@Bean
+				public JwtAccessTokenConverter accessTokenConverter() {
+					
+					JwtAccessTokenConverter tokenConverter = new JwtAccessTokenConverter();
+					tokenConverter.setSigningKey("algun_codigo_secreto_aeiou");
+					return tokenConverter;
+				}
+				
+				
+			}

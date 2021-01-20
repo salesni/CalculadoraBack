@@ -1,0 +1,21 @@
+Angular Commands 
+
+ng new <Nombre del proyecto>
+ng serve
+---------------------------------------------------------------------------------------------------------
+
+ ng g c components/shared/navbar
+ 
+ ng g s services/heroes
+ 
+ Angular tiene unas directivas que van en elHTML para redireccionar
+ 
+ 
+  ng g c components/home  --skipTests=true -is
+  
+  
+  Aplicacion para curso de Java Academy
+  
+   ng g p pipes/noimage
+
+Client ID 394996c60b324951b8434f771960953d

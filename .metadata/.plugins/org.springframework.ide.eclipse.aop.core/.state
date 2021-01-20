@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<aop-reference-model>
+<aop-project name="SB-DonZuul-Operations"/>
+<aop-project name="SB-commons-operations"/>
+<aop-project name="SB-eureka-Operation"/>
+<aop-project name="SB-commons-SupersOperations"/>
+<aop-project name="SB-logic-Operations"/>
+<aop-project name="SB-DonServicio-Uusuario"/>
+<aop-project name="SB-DonLogic-Operations"/>
+<aop-project name="SB-servicio-Operations"/>
+<aop-project name="SB-DonServicio-Operations"/>
+<aop-project name="SB-DonServicio-Oauth"/>
+</aop-reference-model>

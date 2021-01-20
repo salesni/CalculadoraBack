@@ -1,0 +1,36 @@
+CREATE TABLE Usuarios(id_person NUMBER PRIMARY KEY NOT NULL, first_name VARCHAR(25), last_name VARCHAR(25));
+
+INSERT INTO Usuarios (id_person , first_name, last_name) VALUES(1,'Carlos','perez');
+INSERT INTO Usuarios (id_person , first_name, last_name) VALUES(2,'Jesus','Nazarer');
+INSERT INTO Usuarios (id_person , first_name, last_name) VALUES(3,'Señor','Juan');
+INSERT INTO Usuarios (id_person , first_name, last_name) VALUES(4,'Paul','Espinosa');
+INSERT INTO Usuarios (id_person , first_name, last_name) VALUES(5,'Brenda','Lozano');
+INSERT INTO Usuarios (id_person , first_name, last_name) VALUES(6,'Ale','Garcia');
+
+SELECT *FROM Usuarios;
+SELECT *FROM Puestos;
+
+CREATE TABLE Puestos(id_puesto NUMBER PRIMARY KEY NOT NULL, id_person NUMBER, name VARCHAR(25), location VARCHAR(25));
+
+Insert INTO Puestos(id_puesto,id_person , name, location) VALUES(1,1,'DEVELOPER','NEW YORK');
+Insert INTO Puestos(id_puesto,id_person , name, location) VALUES(2,2,'DEVELOPER','NEW YORK');
+Insert INTO Puestos(id_puesto,id_person , name, location) VALUES(3,4,'DEVELOPER','NEW YORK');
+Insert INTO Puestos(id_puesto,id_person , name, location) VALUES(4,5,'DEVELOPER','NEW YORK');
+Insert INTO Puestos(id_puesto,id_person , name, location) VALUES(5,6,'DEVELOPER','NEW YORK');
+Insert INTO Puestos(id_puesto,id_person , name, location) VALUES(6,3,'DEVELOPER','NEW YORK');
+Insert INTO Puestos(id_puesto,id_person , name, location) VALUES(7,6,'PLUMER','NEW YORK');
+
+
+
+SELECT id_person, FIRST_NAME FROM Usuarios WHERE last_name LIKE '%z' order by first_name desc;
+
+SELECT ID_PUESTO, NAME, LOCATION FROM Puestos where id_person IN (SELECT id_person FROM Usuarios where id_person ='6') order by id_puesto desc;
+
+SELECT p.id_puesto, p.name,u.id_person, U.first_name , u.last_name 
+        FROM Usuarios U INNER JOIN  PUESTOS P ON (u.id_person = p.id_person)
+        WHERE u.id_person = '6';
+        --WHERE p.id_person IN (SELECT u.id_person FROM Usuarios where u.id_person ='6') order by id_puesto asc;
+        
+UPDATE Puestos SET NAME ='QA', LOCATION ='CALIFORNIA' WHERE id_person='6';
+commit;
+       
